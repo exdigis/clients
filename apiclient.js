@@ -1,0 +1,102 @@
+#!/usr/bin/env node
+
+// Set API keys
+const apiKey = '<PASTE>';
+const apiSecret = '<PASTE>';
+
+
+
+const crypto = require('crypto');
+const WebSocket = require('ws');
+
+let nonce = 1;
+let sessionToken = '';
+
+
+
+const pubWs = new WebSocket('wss://api-pub.exdigis.com:2053/ws/');
+const privWs = new WebSocket('wss://api.exdigis.com:2083/ws/');
+
+
+// On the private endpoint, we wait for the 'hello' event to be received
+// before attempting to log in.
+privWs.on('open', function() {
+	setInterval(function() { wsPing('priv');}, 60000);
+});
+privWs.on('message', function(data) {
+	let d = JSON.parse(data);
+	switch (d.cmd) {
+
+		case 'v1/hello':
+			sessionToken = d.sessionToken;
+			console.log('Got sessionToken, attempting to authenticate...');
+			wsSend(privWs, {
+				cmd:	'v1/auth',
+				args:	{
+					apiKey:	apiKey
+				}
+			});
+			break;
+
+		case 'v1/auth':
+			if (d.status === 'ok') {
+				console.log('We are now authenticated on the private WS API endpoint');
+				wsSend(privWs, {cmd: 'v1/user_account_info'});
+				break;
+			} else {
+				console.log('Authentication failed - double check those API keys!');
+			}
+			break;
+
+		case 'v1/user_account_info':
+			console.log(`Received account info, our verification level is ${d.data.verificationLevel}`);
+			break;
+
+		case 'v1/ping':
+			wsSend(privWs, {cmd: 'v1/pong'});
+			break;
+	}
+});
+
+
+
+// On the public endpoint, we do not need to wait for anything, nor do we need
+// to login. We go ahead with whatever we want to do upon connection establishment.
+pubWs.on('open', function() {
+	setInterval(function() { wsPing('pub');}, 60000);
+	console.log('Public WS API endpoint connected - requesting list of instruments');
+	wsSend(pubWs, {
+		cmd:	'v1/subscribe',
+		args:	['v1/instruments']
+	});
+});
+
+pubWs.on('message', function(data) {
+	let d = JSON.parse(data);
+	switch (d.cmd) {
+		case 'v1/instruments':
+			console.log('Received ' + d.data.length + ' trade instruments');
+			break;
+
+		case 'v1/ping':
+			wsSend(pubWs, {cmd: 'v1/pong'});
+			break;
+	}
+});
+
+function wsSend(sock, data) {
+	let msg = false;
+	if (sock === pubWs) {
+		msg = JSON.stringify(data);
+	} else if (sock === privWs) {
+		data.sessionToken = sessionToken;
+		data.nonce = nonce++;
+		msg = JSON.stringify(data);
+		let sig = crypto.createHmac('sha384', apiSecret).update(msg).digest('hex');
+		msg += `\n${sig}`;
+	}
+	sock.send(msg);
+}
+function wsPing(type) {
+	wsSend(type === 'pub' ? pubWs : privWs, {cmd: 'v1/ping'});
+}
