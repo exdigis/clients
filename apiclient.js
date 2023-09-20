@@ -14,8 +14,8 @@ let sessionToken = '';
 
 
 
-const pubWs = new WebSocket('wss://api-pub.exdigis.com:2053/ws/');
-const privWs = new WebSocket('wss://api.exdigis.com:2083/ws/');
+const pubWs = new WebSocket('wss://api-pub.exdigis.com/ws/');
+const privWs = new WebSocket('wss://api.exdigis.com/ws/');
 
 
 // On the private endpoint, we wait for the 'hello' event to be received
