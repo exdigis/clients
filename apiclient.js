@@ -41,6 +41,12 @@ privWs.on('message', function(data) {
 		case 'v1/auth':
 			if (d.status === 'ok') {
 				console.log('We are now authenticated on the private WS API endpoint');
+				
+				// Uncommenting the next line will set the trade killswitch on -
+				// upon disconnection (for any reason) of THIS connection, all active orders for
+				// the authenticated user account will be canceled.
+				// wsSend(privWs, {cmd: 'v1/setcnxopt', args: {opt:'v1/trade_killswitch',value:true}});
+
 				wsSend(privWs, {cmd: 'v1/user_account_info'});
 				break;
 			} else {
