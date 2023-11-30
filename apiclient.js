@@ -48,7 +48,6 @@ privWs.on('message', function(data) {
 				// wsSend(privWs, {cmd: 'v1/setcnxopt', args: {opt:'v1/trade_killswitch',value:true}});
 				
 				wsSend(privWs, {cmd: 'v1/user_account_info'});
-				break;
 			} else {
 				console.log('Authentication failed - double check those API keys!');
 			}
